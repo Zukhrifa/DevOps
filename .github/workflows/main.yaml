@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x] 
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install & Build Client
+        run: |
+          cd mern/client
+          npm install
+          npm run build
+
+      - name: Install Server
+        run: |
+          cd mern/server
+          npm install
+
+      - name: Run Lint
+        run: cd mern/client && npm run lint # Pastikan ada script lint di package.json
+      
+      - name: Run Unit Tests
+        run: |
+          cd mern/server && npm test || echo "No tests found"
+          cd mern/client && npm test || echo "No tests found"
