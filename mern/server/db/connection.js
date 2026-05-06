@@ -1,25 +1,44 @@
 import { MongoClient, ServerApiVersion } from "mongodb";
 
 const URI = process.env.ATLAS_URI || "";
-const client = new MongoClient(URI, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-  appName: "devrel-github-javascript-mern",
-});
 
-try {
-  // Connect the client to the server
+// Cached connection — penting untuk serverless agar tidak reconnect tiap request
+let cachedClient = null;
+let cachedDb = null;
+
+async function connectToDatabase() {
+  if (cachedClient && cachedDb) {
+    return cachedDb;
+  }
+
+  const client = new MongoClient(URI, {
+    serverApi: {
+      version: ServerApiVersion.v1,
+      strict: true,
+      deprecationErrors: true,
+    },
+    appName: "EduCareCluster",
+  });
+
   await client.connect();
-  // Send a ping to confirm a successful connection
-  await client.db("admin").command({ ping: 1 });
-  console.log("Pinged your deployment. You successfully connected to MongoDB!");
-} catch (err) {
-  console.error(err);
+  cachedClient = client;
+  cachedDb = client.db("educare");
+
+  console.log("MongoDB connected (cached)");
+  return cachedDb;
 }
 
-let db = client.db("employees");
+// Export sebagai getter agar kompatibel dengan kode lama
+const db = new Proxy(
+  {},
+  {
+    get(_, prop) {
+      return async (...args) => {
+        const database = await connectToDatabase();
+        return database[prop](...args);
+      };
+    },
+  }
+);
 
 export default db;
